@@ -1,0 +1,12 @@
+@import "tailwindcss";
+
+@theme {
+  --color-mason-green: #006633;
+  --color-mason-gold: #FFCC33;
+  --color-mason-dark: #1a1a1a;
+}
+
+body {
+  background-color: #f3f4f6;
+  color: #1f2937;
+}
