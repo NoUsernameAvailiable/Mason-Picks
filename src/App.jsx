@@ -37,12 +37,12 @@ function App() {
     let result = courses;
 
     if (searchTerm) {
-      const lowerTerm = searchTerm.toLowerCase();
-      result = result.filter(course =>
-        course.code.toLowerCase().includes(lowerTerm) ||
-        course.title.toLowerCase().includes(lowerTerm) ||
-        course.instructor.toLowerCase().includes(lowerTerm)
-      );
+      const searchWords = searchTerm.toLowerCase().trim().split(/\s+/);
+      result = result.filter(course => {
+        const searchableText = `${course.code} ${course.title} ${course.instructor}`.toLowerCase();
+        // Check if all search words are present (in any order)
+        return searchWords.every(word => searchableText.includes(word));
+      });
     }
 
     if (minGPA > 0) {
