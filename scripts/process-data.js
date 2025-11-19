@@ -98,9 +98,20 @@ Papa.parse(csvFile, {
                 };
             });
 
-        console.log(`Generated ${outputData.length} course entries.`);
+        // Deduplicate: Remove courses with same Code + GPA + TotalStudents
+        const seenSignatures = new Set();
+        const uniqueOutputData = outputData.filter(course => {
+            const signature = `${course.code}|${course.gpa}|${course.totalStudents}`;
+            if (seenSignatures.has(signature)) {
+                return false;
+            }
+            seenSignatures.add(signature);
+            return true;
+        });
 
-        fs.writeFileSync(OUTPUT_PATH, JSON.stringify(outputData, null, 2));
+        console.log(`Generated ${uniqueOutputData.length} unique course entries (from ${outputData.length} total).`);
+
+        fs.writeFileSync(OUTPUT_PATH, JSON.stringify(uniqueOutputData, null, 2));
         console.log(`Data written to ${OUTPUT_PATH}`);
     }
 });
