@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 export default function CourseCard({ course }) {
     const [showTooltip, setShowTooltip] = useState(false);
     const [isPinned, setIsPinned] = useState(false);
+    const [tooltipPosition, setTooltipPosition] = useState('bottom');
     const tooltipRef = useRef(null);
     const buttonRef = useRef(null);
 
@@ -68,11 +69,22 @@ export default function CourseCard({ course }) {
         const newPinned = !isPinned;
         setIsPinned(newPinned);
         setShowTooltip(true); // Always show when clicked
+        checkTooltipPosition();
     };
 
     const handleMouseEnter = () => {
         if (!isPinned) {
             setShowTooltip(true);
+            checkTooltipPosition();
+        }
+    };
+
+    const checkTooltipPosition = () => {
+        if (buttonRef.current) {
+            const rect = buttonRef.current.getBoundingClientRect();
+            const spaceBelow = window.innerHeight - rect.bottom;
+            // If less than 600px space below, show tooltip above
+            setTooltipPosition(spaceBelow < 600 ? 'top' : 'bottom');
         }
     };
 
@@ -91,8 +103,31 @@ export default function CourseCard({ course }) {
                     {course.crn && <p className="text-xs text-gray-500 mt-1">CRN: {course.crn}</p>}
                 </div>
                 <div className="text-right relative">
-                    <div className={`text-xl font-bold ${gpaColor(course.gpa)}`}>
-                        {course.gpa}
+                    <div className="flex items-center justify-end gap-2">
+                        <div className={`text-xl font-bold ${gpaColor(course.gpa)}`}>
+                            {course.gpa}
+                        </div>
+                        {/* Sparkline */}
+                        {course.semesterData && course.semesterData.length > 1 && (
+                            <svg width="40" height="20" viewBox="0 0 40 20" className="opacity-60">
+                                <polyline
+                                    points={course.semesterData.map((sem, idx) => {
+                                        const x = (idx * 40) / (course.semesterData.length - 1);
+                                        const minGPA = Math.min(...course.semesterData.map(s => parseFloat(s.gpa)));
+                                        const maxGPA = Math.max(...course.semesterData.map(s => parseFloat(s.gpa)));
+                                        const range = maxGPA - minGPA || 1;
+                                        const y = 18 - ((parseFloat(sem.gpa) - minGPA) / range) * 16;
+                                        return `${x},${y}`;
+                                    }).join(' ')}
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="2"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    className={gpaColor(course.gpa)}
+                                />
+                            </svg>
+                        )}
                     </div>
                     <button
                         ref={buttonRef}
@@ -109,7 +144,9 @@ export default function CourseCard({ course }) {
                     {showTooltip && (
                         <div
                             ref={tooltipRef}
-                            className="absolute right-0 top-full mt-2 w-72 bg-gray-900 text-white text-xs rounded-lg shadow-xl p-4 z-10">
+                            className={`absolute right-0 w-72 bg-gray-900 text-white text-xs rounded-lg shadow-xl p-4 z-10 ${
+                                tooltipPosition === 'bottom' ? 'top-full mt-2' : 'bottom-full mb-2'
+                            }`}>
                             <div className="font-semibold mb-3 text-sm">Grade Distribution</div>
 
                             {/* Bell Curve Visualization */}
@@ -199,6 +236,113 @@ export default function CourseCard({ course }) {
                                     </div>
                                 </div>
                             </div>
+
+                            {/* GPA Trend Over Time */}
+                            {course.semesterData && course.semesterData.length > 1 && (
+                                <div className="mb-3 bg-gray-800 rounded p-3">
+                                    <div className="font-semibold mb-2 text-[11px]">Avg. GPA Trend Over Time</div>
+                                    <div className="flex">
+                                        {/* Y-axis labels for trend */}
+                                        <div className="flex flex-col justify-between h-20 pr-2 text-[9px] text-gray-400">
+                                            {(() => {
+                                                const gpas = course.semesterData.map(s => parseFloat(s.gpa));
+                                                const minGPA = Math.min(...gpas);
+                                                const maxGPA = Math.max(...gpas);
+                                                const range = maxGPA - minGPA;
+
+                                                // If all GPAs are the same, show range around that value
+                                                if (range === 0) {
+                                                    const gpa = maxGPA;
+                                                    // Show reasonable range, but cap at 4.0
+                                                    const topLabel = Math.min(gpa + 0.3, 4.0);
+                                                    const range = topLabel - Math.max(gpa - 0.3, 0);
+                                                    const step = range / 3;
+                                                    return [
+                                                        topLabel.toFixed(2),
+                                                        (topLabel - step).toFixed(2),
+                                                        (topLabel - 2 * step).toFixed(2),
+                                                        Math.max(gpa - 0.3, 0).toFixed(2)
+                                                    ].map((val, idx) => <div key={idx} className="leading-none">{val}</div>);
+                                                }
+
+                                                const step = range / 3;
+                                                return [
+                                                    maxGPA.toFixed(2),
+                                                    (maxGPA - step).toFixed(2),
+                                                    (maxGPA - 2 * step).toFixed(2),
+                                                    minGPA.toFixed(2)
+                                                ].map((val, idx) => <div key={idx} className="leading-none">{val}</div>);
+                                            })()}
+                                        </div>
+
+                                        {/* Trend chart */}
+                                        <div className="flex-1">
+                                            <svg width="100%" height="80" viewBox="0 0 240 80" preserveAspectRatio="none">
+                                                {/* Grid lines */}
+                                                <line x1="0" y1="60" x2="240" y2="60" stroke="#374151" strokeWidth="1" strokeDasharray="2,2" />
+                                                <line x1="0" y1="40" x2="240" y2="40" stroke="#374151" strokeWidth="1" strokeDasharray="2,2" />
+                                                <line x1="0" y1="20" x2="240" y2="20" stroke="#374151" strokeWidth="1" strokeDasharray="2,2" />
+
+                                                {/* Y-axis line */}
+                                                <line x1="0" y1="0" x2="0" y2="75" stroke="#4B5563" strokeWidth="2" />
+
+                                                {/* Trend line */}
+                                                <polyline
+                                                    points={course.semesterData.map((sem, idx) => {
+                                                        const x = (idx * 240) / (course.semesterData.length - 1);
+                                                        const minGPA = Math.min(...course.semesterData.map(s => parseFloat(s.gpa)));
+                                                        const maxGPA = Math.max(...course.semesterData.map(s => parseFloat(s.gpa)));
+                                                        const range = maxGPA - minGPA;
+                                                        // If all GPAs are the same, center the line
+                                                        const y = range === 0 ? 40 : 70 - ((parseFloat(sem.gpa) - minGPA) / range) * 60;
+                                                        return `${x},${y}`;
+                                                    }).join(' ')}
+                                                    fill="none"
+                                                    stroke="#10b981"
+                                                    strokeWidth="3"
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                />
+
+                                                {/* Data points */}
+                                                {course.semesterData.map((sem, idx) => {
+                                                    const x = (idx * 240) / (course.semesterData.length - 1);
+                                                    const minGPA = Math.min(...course.semesterData.map(s => parseFloat(s.gpa)));
+                                                    const maxGPA = Math.max(...course.semesterData.map(s => parseFloat(s.gpa)));
+                                                    const range = maxGPA - minGPA;
+                                                    const y = range === 0 ? 40 : 70 - ((parseFloat(sem.gpa) - minGPA) / range) * 60;
+                                                    return (
+                                                        <g key={idx}>
+                                                            <circle
+                                                                cx={x}
+                                                                cy={y}
+                                                                r="4"
+                                                                fill="#10b981"
+                                                                stroke="#059669"
+                                                                strokeWidth="1.5"
+                                                            />
+                                                            <title>{`${sem.semester}: GPA ${sem.gpa} (${sem.studentCount} students)`}</title>
+                                                        </g>
+                                                    );
+                                                })}
+                                            </svg>
+
+                                            {/* Semester labels - show only some to avoid crowding */}
+                                            <div className="flex justify-between mt-1 text-[8px] text-gray-400">
+                                                {course.semesterData.map((sem, idx, arr) => {
+                                                    // Show first, last, and middle labels for clarity
+                                                    const shouldShow = idx === 0 || idx === arr.length - 1 || (arr.length > 4 && idx === Math.floor(arr.length / 2));
+                                                    return (
+                                                        <div key={idx} className="flex-1 text-center" style={{ visibility: shouldShow ? 'visible' : 'hidden' }}>
+                                                            {sem.term.substring(0, 3)} {sem.year.toString().substring(2)}
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
 
                             {/* Statistics */}
                             <div className="space-y-1 border-t border-gray-700 pt-2">

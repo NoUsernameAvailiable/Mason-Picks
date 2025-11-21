@@ -67,12 +67,15 @@ Papa.parse(csvFile, {
             const title = row['Title']?.trim();
             let instructor = row['Instructor']?.trim();
             const crn = row['CRN']?.trim();
+            const term = row['Term']?.trim();
+            const year = row['Year']?.trim();
 
-            if (!subject || !courseNumber) return;
+            if (!subject || !courseNumber || !term || !year) return;
             if (!instructor) instructor = 'TBA';
 
             const courseId = `${subject} ${courseNumber}`;
             const key = `${courseId}-${instructor}`;
+            const semesterKey = `${term} ${year}`;
 
             if (!courses[key]) {
                 courses[key] = {
@@ -90,21 +93,40 @@ Papa.parse(csvFile, {
                         'C+': 0, 'C': 0, 'C-': 0,
                         'D': 0, 'F': 0
                     },
-                    semesters: new Set()
+                    semesters: new Set(),
+                    semesterData: {}
                 };
             } else if (crn && !courses[key].crn) {
                 // Update CRN if it exists and wasn't set before
                 courses[key].crn = crn;
             }
 
-            // Aggregate grades
+            // Initialize semester data if not exists
+            if (!courses[key].semesterData[semesterKey]) {
+                courses[key].semesterData[semesterKey] = {
+                    semester: semesterKey,
+                    term: term,
+                    year: parseInt(year, 10),
+                    grades: {
+                        'A+': 0, 'A': 0, 'A-': 0,
+                        'B+': 0, 'B': 0, 'B-': 0,
+                        'C+': 0, 'C': 0, 'C-': 0,
+                        'D': 0, 'F': 0
+                    },
+                    studentCount: 0
+                };
+            }
+
+            // Aggregate grades for overall
             Object.keys(courses[key].grades).forEach(grade => {
                 const count = parseInt(row[grade] || 0, 10);
                 courses[key].grades[grade] += count;
+                courses[key].semesterData[semesterKey].grades[grade] += count;
             });
 
             courses[key].totalStudents += parseInt(row['Total_Students'] || 0, 10);
-            courses[key].semesters.add(`${row['Term']} ${row['Year']}`);
+            courses[key].semesterData[semesterKey].studentCount += parseInt(row['Total_Students'] || 0, 10);
+            courses[key].semesters.add(semesterKey);
         });
 
         // Calculate GPA and format output
@@ -113,11 +135,29 @@ Papa.parse(csvFile, {
             .map(course => {
                 const gpa = calculateGPA(course.grades);
                 const stdDev = calculateStdDev(course.grades, parseFloat(gpa));
+
+                // Calculate GPA for each semester and sort chronologically
+                const semesterDataArray = Object.values(course.semesterData)
+                    .map(semData => ({
+                        semester: semData.semester,
+                        term: semData.term,
+                        year: semData.year,
+                        gpa: calculateGPA(semData.grades),
+                        studentCount: semData.studentCount
+                    }))
+                    .sort((a, b) => {
+                        // Sort by year first, then by term order
+                        if (a.year !== b.year) return a.year - b.year;
+                        const termOrder = { 'Spring': 1, 'Summer': 2, 'Fall': 3, 'Winter': 4 };
+                        return (termOrder[a.term] || 0) - (termOrder[b.term] || 0);
+                    });
+
                 return {
                     ...course,
                     gpa: gpa,
                     stdDev: stdDev,
-                    semesters: Array.from(course.semesters).sort()
+                    semesters: Array.from(course.semesters).sort(),
+                    semesterData: semesterDataArray
                 };
             });
 
