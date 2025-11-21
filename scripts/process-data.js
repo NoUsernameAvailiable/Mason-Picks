@@ -35,6 +35,21 @@ function calculateGPA(grades) {
     return totalGradedStudents > 0 ? (totalPoints / totalGradedStudents).toFixed(2) : 0;
 }
 
+function calculateStdDev(grades, meanGPA) {
+    let sumSquaredDiff = 0;
+    let totalGradedStudents = 0;
+
+    for (const [grade, count] of Object.entries(grades)) {
+        if (GPA_WEIGHTS[grade] !== undefined) {
+            const diff = GPA_WEIGHTS[grade] - meanGPA;
+            sumSquaredDiff += count * (diff * diff);
+            totalGradedStudents += count;
+        }
+    }
+
+    return totalGradedStudents > 1 ? Math.sqrt(sumSquaredDiff / totalGradedStudents).toFixed(2) : 0;
+}
+
 console.log('Reading CSV file...');
 const csvFile = fs.readFileSync(CSV_PATH, 'utf8');
 
@@ -51,6 +66,7 @@ Papa.parse(csvFile, {
             const courseNumber = row['Course Number']?.trim();
             const title = row['Title']?.trim();
             let instructor = row['Instructor']?.trim();
+            const crn = row['CRN']?.trim();
 
             if (!subject || !courseNumber) return;
             if (!instructor) instructor = 'TBA';
@@ -66,6 +82,7 @@ Papa.parse(csvFile, {
                     code: courseId,
                     title,
                     instructor,
+                    crn: crn || '',
                     totalStudents: 0,
                     grades: {
                         'A+': 0, 'A': 0, 'A-': 0,
@@ -75,6 +92,9 @@ Papa.parse(csvFile, {
                     },
                     semesters: new Set()
                 };
+            } else if (crn && !courses[key].crn) {
+                // Update CRN if it exists and wasn't set before
+                courses[key].crn = crn;
             }
 
             // Aggregate grades
@@ -91,9 +111,12 @@ Papa.parse(csvFile, {
         const outputData = Object.values(courses)
             .filter(course => course.totalStudents >= 5)
             .map(course => {
+                const gpa = calculateGPA(course.grades);
+                const stdDev = calculateStdDev(course.grades, parseFloat(gpa));
                 return {
                     ...course,
-                    gpa: calculateGPA(course.grades),
+                    gpa: gpa,
+                    stdDev: stdDev,
                     semesters: Array.from(course.semesters).sort()
                 };
             });
