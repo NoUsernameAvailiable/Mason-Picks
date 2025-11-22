@@ -35,6 +35,33 @@ function calculateGPA(grades) {
     return totalGradedStudents > 0 ? (totalPoints / totalGradedStudents).toFixed(2) : 0;
 }
 
+function calculateMedianGPA(grades) {
+    // Convert grade distribution into array of individual grade values
+    const gradeValues = [];
+
+    for (const [grade, count] of Object.entries(grades)) {
+        if (GPA_WEIGHTS[grade] !== undefined) {
+            for (let i = 0; i < count; i++) {
+                gradeValues.push(GPA_WEIGHTS[grade]);
+            }
+        }
+    }
+
+    if (gradeValues.length === 0) return 0;
+
+    // Sort and find median
+    gradeValues.sort((a, b) => a - b);
+    const mid = Math.floor(gradeValues.length / 2);
+
+    if (gradeValues.length % 2 === 0) {
+        // Even number of grades - average the two middle values
+        return ((gradeValues[mid - 1] + gradeValues[mid]) / 2).toFixed(2);
+    } else {
+        // Odd number of grades - return the middle value
+        return gradeValues[mid].toFixed(2);
+    }
+}
+
 console.log('Reading CSV file...');
 const csvFile = fs.readFileSync(CSV_PATH, 'utf8');
 
@@ -94,6 +121,7 @@ Papa.parse(csvFile, {
                 return {
                     ...course,
                     gpa: calculateGPA(course.grades),
+                    medianGpa: calculateMedianGPA(course.grades),
                     semesters: Array.from(course.semesters).sort()
                 };
             });

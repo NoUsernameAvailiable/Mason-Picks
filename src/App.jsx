@@ -58,7 +58,7 @@ function App() {
       let bValue = b[sortConfig.key];
 
       // Handle numeric vs string comparison
-      if (sortConfig.key === 'gpa' || sortConfig.key === 'totalStudents') {
+      if (sortConfig.key === 'gpa' || sortConfig.key === 'medianGpa' || sortConfig.key === 'totalStudents') {
         aValue = parseFloat(aValue);
         bValue = parseFloat(bValue);
       } else {
@@ -146,7 +146,8 @@ function App() {
                   value={sortConfig.key}
                   onChange={(e) => handleSort(e.target.value)}
                 >
-                  <option value="gpa">Sort by GPA (in search)</option>
+                  <option value="gpa">Sort by Mean GPA</option>
+                  <option value="medianGpa">Sort by Median GPA</option>
                   <option value="totalStudents">Sort by size (in search)</option>
                   <option value="instructor">Sort by Instructor (in search)</option>
                 </select>
