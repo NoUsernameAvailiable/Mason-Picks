@@ -39,7 +39,7 @@ function App() {
     if (searchTerm) {
       const searchWords = searchTerm.toLowerCase().trim().split(/\s+/);
       result = result.filter(course => {
-        const searchableText = `${course.code} ${course.title} ${course.instructor}`.toLowerCase();
+        const searchableText = `${course.code} ${course.title} ${course.instructor} ${course.crn || ''}`.toLowerCase();
         // Check if all search words are present (in any order)
         return searchWords.every(word => searchableText.includes(word));
       });
@@ -104,7 +104,7 @@ function App() {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
               <input
                 type="text"
-                placeholder="Search courses, professors, or codes..."
+                placeholder="Search by CRN, course code, title, or professor..."
                 className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-mason-green focus:border-transparent outline-none"
                 value={searchTerm}
                 onChange={handleSearch}
