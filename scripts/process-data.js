@@ -158,7 +158,6 @@ Papa.parse(csvFile, {
 
         // Calculate GPA and format output
         const outputData = Object.values(courses)
-            .filter(course => course.totalStudents >= 5)
             .map(course => {
                 const gpa = calculateGPA(course.grades);
                 const stdDev = calculateStdDev(course.grades, parseFloat(gpa));
