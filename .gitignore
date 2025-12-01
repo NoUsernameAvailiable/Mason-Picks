@@ -24,4 +24,4 @@ dist-ssr
 *.sw?
 
 # Generated Data
-public/data/courses.json
+# public/data/courses.json
