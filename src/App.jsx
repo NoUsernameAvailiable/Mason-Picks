@@ -124,7 +124,7 @@ function App() {
             let bValue = b[sortConfig.key];
 
             // Handle numeric vs string comparison
-            if (['gpa', 'medianGpa', 'totalStudents', 'withdrawRate'].includes(sortConfig.key)) {
+            if (['gpa', 'medianGpa', 'totalStudents'].includes(sortConfig.key)) {
                 aValue = parseFloat(aValue);
                 bValue = parseFloat(bValue);
             } else {
@@ -267,7 +267,7 @@ function App() {
                                 >
                                     <option value="gpa">Sort by Mean GPA</option>
                                     <option value="medianGpa">Sort by Median GPA</option>
-                                    <option value="withdrawRate">Sort by W%</option>
+
                                     <option value="totalStudents">Sort by Size</option>
                                     <option value="instructor">Sort by Instructor</option>
                                 </select>

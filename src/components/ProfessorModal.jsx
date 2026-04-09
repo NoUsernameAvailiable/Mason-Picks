@@ -13,7 +13,7 @@ export default function ProfessorModal({ professor, courses, onClose }) {
         return [...profCourses].sort((a, b) => {
             let aVal = a[sortKey];
             let bVal = b[sortKey];
-            if (['gpa', 'medianGpa', 'totalStudents', 'withdrawRate'].includes(sortKey)) {
+            if (['gpa', 'medianGpa', 'totalStudents'].includes(sortKey)) {
                 aVal = parseFloat(aVal);
                 bVal = parseFloat(bVal);
             } else {
@@ -31,11 +31,8 @@ export default function ProfessorModal({ professor, courses, onClose }) {
         const avgGpa = profCourses.length > 0
             ? (profCourses.reduce((s, c) => s + parseFloat(c.gpa), 0) / profCourses.length).toFixed(2)
             : '0.00';
-        const avgW = profCourses.length > 0
-            ? (profCourses.reduce((s, c) => s + parseFloat(c.withdrawRate || 0), 0) / profCourses.length).toFixed(1)
-            : '0.0';
         const uniqueCourses = new Set(profCourses.map(c => c.courseKey)).size;
-        return { totalStudents, avgGpa, avgW, uniqueCourses, totalSections: profCourses.length };
+        return { totalStudents, avgGpa, uniqueCourses, totalSections: profCourses.length };
     }, [profCourses]);
 
     const handleSort = (key) => {
@@ -54,12 +51,7 @@ export default function ProfessorModal({ professor, courses, onClose }) {
         return 'text-red-600 dark:text-red-400';
     };
 
-    const wColor = (w) => {
-        const num = parseFloat(w);
-        if (num < 5) return 'text-emerald-600 dark:text-emerald-400';
-        if (num <= 15) return 'text-yellow-600 dark:text-yellow-400';
-        return 'text-red-600 dark:text-red-400';
-    };
+
 
     const getTrend = () => {
         if (profCourses.length < 2) return null;
@@ -117,10 +109,7 @@ export default function ProfessorModal({ professor, courses, onClose }) {
                             {trend === 'down' && <TrendingDown size={14} className="text-red-500 dark:text-red-400" />}
                             {trend === 'stable' && <Minus size={14} className="text-gray-400" />}
                         </div>
-                        <div className="flex items-center gap-2 bg-gray-100 dark:bg-gray-900/50 rounded-lg px-3 py-2">
-                            <span className="text-xs text-gray-500 dark:text-gray-400">Avg W%</span>
-                            <span className={`font-bold ${wColor(stats.avgW)}`}>{stats.avgW}%</span>
-                        </div>
+
                         <div className="flex items-center gap-2 bg-gray-100 dark:bg-gray-900/50 rounded-lg px-3 py-2">
                             <span className="text-xs text-gray-500 dark:text-gray-400">Courses</span>
                             <span className="font-bold text-gray-900 dark:text-white">{stats.uniqueCourses}</span>
@@ -141,7 +130,7 @@ export default function ProfessorModal({ professor, courses, onClose }) {
                                     { key: 'title', label: 'Title' },
                                     { key: 'gpa', label: 'Mean' },
                                     { key: 'medianGpa', label: 'Median' },
-                                    { key: 'withdrawRate', label: 'W%' },
+
                                     { key: 'totalStudents', label: 'Students' },
                                 ].map(col => (
                                     <th
@@ -169,7 +158,7 @@ export default function ProfessorModal({ professor, courses, onClose }) {
                                     <td className="px-4 py-3 text-gray-600 dark:text-gray-300 max-w-[200px] truncate" title={course.title}>{course.title}</td>
                                     <td className={`px-4 py-3 font-bold ${gpaColor(course.gpa)}`}>{course.gpa}</td>
                                     <td className={`px-4 py-3 font-semibold ${gpaColor(course.medianGpa)}`}>{course.medianGpa}</td>
-                                    <td className={`px-4 py-3 ${wColor(course.withdrawRate)}`}>{course.withdrawRate}%</td>
+
                                     <td className="px-4 py-3 text-gray-600 dark:text-gray-300">{course.totalStudents}</td>
                                 </tr>
                             ))}

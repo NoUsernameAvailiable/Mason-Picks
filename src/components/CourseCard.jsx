@@ -15,12 +15,6 @@ export default function CourseCard({ course, sectionMap, onProfessorClick }) {
         return 'text-red-600 dark:text-red-400';
     };
 
-    const wColor = (w) => {
-        const num = parseFloat(w);
-        if (num < 5) return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400';
-        if (num <= 15) return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-400';
-        return 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400';
-    };
 
     // Calculate percentage distribution
     const totalGraded = Object.entries(course.grades || {})
@@ -114,11 +108,7 @@ export default function CourseCard({ course, sectionMap, onProfessorClick }) {
                             <BestSectionBadge course={course} sectionMap={sectionMap} />
                         </div>
                     )}
-                    {course.withdrawRate && parseFloat(course.withdrawRate) > 0 && (
-                        <span className={`inline-block mt-1.5 text-[11px] font-medium px-2 py-0.5 rounded-full ${wColor(course.withdrawRate)}`}>
-                            W: {course.withdrawRate}%
-                        </span>
-                    )}
+
                 </div>
                 <div className="text-right relative">
                     <div className="flex items-center justify-end gap-2">
@@ -396,12 +386,7 @@ export default function CourseCard({ course, sectionMap, onProfessorClick }) {
                                         {course.medianGpa}
                                     </span>
                                 </div>
-                                {course.withdrawRate && parseFloat(course.withdrawRate) > 0 && (
-                                    <div className="flex justify-between">
-                                        <span className="text-gray-400">Withdraw Rate:</span>
-                                        <span className="font-medium">{course.withdrawRate}%</span>
-                                    </div>
-                                )}
+
                             </div>
                         </div>
                     )}

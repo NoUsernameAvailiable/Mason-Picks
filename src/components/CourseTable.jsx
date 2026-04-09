@@ -11,12 +11,7 @@ export default function CourseTable({ courses, sortConfig, onSort }) {
         return 'text-red-600 dark:text-red-400';
     };
 
-    const wColor = (w) => {
-        const num = parseFloat(w);
-        if (num < 5) return 'text-emerald-500 dark:text-emerald-400';
-        if (num <= 15) return 'text-yellow-600 dark:text-yellow-400';
-        return 'text-red-600 dark:text-red-400';
-    };
+
 
     const columns = [
         { key: 'code', label: 'Course', className: '' },
@@ -24,7 +19,7 @@ export default function CourseTable({ courses, sortConfig, onSort }) {
         { key: 'instructor', label: 'Instructor', className: '' },
         { key: 'gpa', label: 'Mean GPA', className: '' },
         { key: 'medianGpa', label: 'Median', className: 'hidden lg:table-cell' },
-        { key: 'withdrawRate', label: 'W%', className: 'hidden sm:table-cell' },
+
         { key: 'totalStudents', label: 'Students', className: 'hidden sm:table-cell' },
     ];
 
@@ -79,9 +74,7 @@ export default function CourseTable({ courses, sortConfig, onSort }) {
                                 <td className={`px-4 py-3 font-semibold hidden lg:table-cell ${gpaColor(course.medianGpa)}`}>
                                     {course.medianGpa}
                                 </td>
-                                <td className={`px-4 py-3 hidden sm:table-cell ${wColor(course.withdrawRate)}`}>
-                                    {course.withdrawRate}%
-                                </td>
+
                                 <td className="px-4 py-3 text-gray-600 dark:text-gray-400 hidden sm:table-cell">
                                     {course.totalStudents}
                                 </td>

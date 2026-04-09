@@ -86,9 +86,7 @@ export default function BestSectionBadge({ course, sectionMap }) {
                                     <div className="flex items-center gap-3 shrink-0 ml-2">
                                         <span className={`font-bold ${gpaColor(sec.gpa)}`}>{sec.gpa}</span>
                                         <span className="text-gray-500">{sec.totalStudents} st.</span>
-                                        {sec.withdrawRate && (
-                                            <span className="text-gray-500">W:{sec.withdrawRate}%</span>
-                                        )}
+
                                     </div>
                                 </div>
                             );
