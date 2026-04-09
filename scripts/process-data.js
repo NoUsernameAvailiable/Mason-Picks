@@ -77,6 +77,17 @@ function calculateStdDev(grades, meanGPA) {
     return totalGradedStudents > 1 ? Math.sqrt(sumSquaredDiff / totalGradedStudents).toFixed(2) : 0;
 }
 
+function getCourseLevel(courseNumber) {
+    const num = parseInt(courseNumber, 10);
+    if (isNaN(num)) return 'Other';
+    if (num < 200) return '100';
+    if (num < 300) return '200';
+    if (num < 400) return '300';
+    if (num < 500) return '400';
+    if (num < 600) return '500';
+    return '600+';
+}
+
 console.log('Reading CSV file...');
 const csvFile = fs.readFileSync(CSV_PATH, 'utf8');
 
@@ -110,10 +121,13 @@ Papa.parse(csvFile, {
                     subject,
                     courseNumber,
                     code: courseId,
+                    courseKey: courseId,
                     title,
                     instructor,
                     crn: crn || '',
+                    level: getCourseLevel(courseNumber),
                     totalStudents: 0,
+                    totalW: 0,
                     grades: {
                         'A+': 0, 'A': 0, 'A-': 0,
                         'B+': 0, 'B': 0, 'B-': 0,
@@ -140,7 +154,8 @@ Papa.parse(csvFile, {
                         'C+': 0, 'C': 0, 'C-': 0,
                         'D': 0, 'F': 0
                     },
-                    studentCount: 0
+                    studentCount: 0,
+                    wCount: 0
                 };
             }
 
@@ -150,6 +165,11 @@ Papa.parse(csvFile, {
                 courses[key].grades[grade] += count;
                 courses[key].semesterData[semesterKey].grades[grade] += count;
             });
+
+            // Capture W count
+            const wCount = parseInt(row['W'] || 0, 10);
+            courses[key].totalW += wCount;
+            courses[key].semesterData[semesterKey].wCount += wCount;
 
             courses[key].totalStudents += parseInt(row['Total_Students'] || 0, 10);
             courses[key].semesterData[semesterKey].studentCount += parseInt(row['Total_Students'] || 0, 10);
@@ -161,6 +181,12 @@ Papa.parse(csvFile, {
             .map(course => {
                 const gpa = calculateGPA(course.grades);
                 const stdDev = calculateStdDev(course.grades, parseFloat(gpa));
+
+
+                const totalGraded = Object.values(course.grades).reduce((s, c) => s + c, 0);
+                const withdrawRate = (totalGraded + course.totalW) > 0
+                    ? ((course.totalW / (totalGraded + course.totalW)) * 100).toFixed(1)
+                    : "0.0";
 
                 // Calculate GPA for each semester and sort chronologically
                 const semesterDataArray = Object.values(course.semesterData)
@@ -183,6 +209,7 @@ Papa.parse(csvFile, {
                     gpa: gpa,
                     medianGpa: calculateMedianGPA(course.grades),
                     stdDev: stdDev,
+                    withdrawRate: withdrawRate,
                     semesters: Array.from(course.semesters).sort(),
                     semesterData: semesterDataArray
                 };

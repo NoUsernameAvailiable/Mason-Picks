@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
+import BestSectionBadge from './BestSectionBadge';
 
-export default function CourseCard({ course }) {
+export default function CourseCard({ course, sectionMap, onProfessorClick }) {
     const [showTooltip, setShowTooltip] = useState(false);
     const [isPinned, setIsPinned] = useState(false);
     const [tooltipPosition, setTooltipPosition] = useState('bottom');
@@ -9,9 +10,16 @@ export default function CourseCard({ course }) {
 
     const gpaColor = (gpa) => {
         const num = parseFloat(gpa);
-        if (num >= 3.5) return 'text-green-600';
-        if (num >= 3.0) return 'text-yellow-600';
-        return 'text-red-600';
+        if (num >= 3.5) return 'text-green-600 dark:text-emerald-400';
+        if (num >= 3.0) return 'text-yellow-600 dark:text-yellow-400';
+        return 'text-red-600 dark:text-red-400';
+    };
+
+    const wColor = (w) => {
+        const num = parseFloat(w);
+        if (num < 5) return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400';
+        if (num <= 15) return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-400';
+        return 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400';
     };
 
     // Calculate percentage distribution
@@ -95,12 +103,22 @@ export default function CourseCard({ course }) {
     };
 
     return (
-        <div className="bg-white rounded-lg shadow-md p-4 hover:shadow-lg transition-shadow border border-gray-100">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 hover:shadow-lg transition-shadow border border-gray-100 dark:border-gray-700">
             <div className="flex justify-between items-start mb-2">
-                <div>
-                    <h3 className="text-lg font-bold text-gray-800">{course.code}</h3>
-                    <p className="text-sm text-gray-600 line-clamp-1" title={course.title}>{course.title}</p>
-                    {course.crn && <p className="text-xs text-gray-500 mt-1">CRN: {course.crn}</p>}
+                <div className="min-w-0 flex-1 mr-3">
+                    <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100">{course.code}</h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-1" title={course.title}>{course.title}</p>
+
+                    {sectionMap && (
+                        <div className="mt-1">
+                            <BestSectionBadge course={course} sectionMap={sectionMap} />
+                        </div>
+                    )}
+                    {course.withdrawRate && parseFloat(course.withdrawRate) > 0 && (
+                        <span className={`inline-block mt-1.5 text-[11px] font-medium px-2 py-0.5 rounded-full ${wColor(course.withdrawRate)}`}>
+                            W: {course.withdrawRate}%
+                        </span>
+                    )}
                 </div>
                 <div className="text-right relative">
                     <div className="flex items-center justify-end gap-2">
@@ -108,7 +126,7 @@ export default function CourseCard({ course }) {
                             <div className={`text-xl font-bold ${gpaColor(course.gpa)}`}>
                                 {course.gpa}
                             </div>
-                            <div className="text-xs text-gray-500">Mean</div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400">Mean</div>
                         </div>
 
                         {/* Sparkline */}
@@ -138,12 +156,12 @@ export default function CourseCard({ course }) {
                         <div className={`text-lg font-semibold ${gpaColor(course.medianGpa)}`}>
                             {course.medianGpa}
                         </div>
-                        <div className="text-xs text-gray-500">Median</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">Median</div>
                     </div>
 
                     <button
                         ref={buttonRef}
-                        className={`text-xs italic cursor-pointer mt-1 transition-colors ${isPinned ? 'text-blue-400 hover:text-blue-500' : 'text-gray-400 hover:text-gray-600'
+                        className={`text-xs italic cursor-pointer mt-1 transition-colors ${isPinned ? 'text-blue-400 hover:text-blue-500' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
                             }`}
                         onClick={handleMoreClick}
                         onMouseEnter={handleMouseEnter}
@@ -378,13 +396,27 @@ export default function CourseCard({ course }) {
                                         {course.medianGpa}
                                     </span>
                                 </div>
+                                {course.withdrawRate && parseFloat(course.withdrawRate) > 0 && (
+                                    <div className="flex justify-between">
+                                        <span className="text-gray-400">Withdraw Rate:</span>
+                                        <span className="font-medium">{course.withdrawRate}%</span>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     )}
                 </div>
             </div>
-            <div className="flex justify-between items-center mt-4 text-sm text-gray-500">
-                <span className="font-medium truncate max-w-[60%]">{course.instructor}</span>
+            <div className="flex justify-between items-center mt-4 text-sm text-gray-500 dark:text-gray-400">
+                <button
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        if (onProfessorClick) onProfessorClick(course.instructor);
+                    }}
+                    className="font-medium truncate max-w-[60%] hover:text-mason-green dark:hover:text-mason-gold hover:underline cursor-pointer transition-colors text-left"
+                >
+                    {course.instructor}
+                </button>
                 <span>{course.totalStudents} students</span>
             </div>
         </div>
