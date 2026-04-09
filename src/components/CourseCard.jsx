@@ -413,7 +413,7 @@ export default function CourseCard({ course, sectionMap, onProfessorClick }) {
                         e.stopPropagation();
                         if (onProfessorClick) onProfessorClick(course.instructor);
                     }}
-                    className="font-medium truncate max-w-[60%] hover:text-mason-green dark:hover:text-mason-gold hover:underline cursor-pointer transition-colors text-left"
+                    className="font-medium truncate max-w-[60%] hover:text-mason-green dark:hover:text-mason-gold underline cursor-pointer transition-colors text-left"
                 >
                     {course.instructor}
                 </button>
