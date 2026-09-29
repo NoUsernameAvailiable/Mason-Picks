@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { Star, Users, ChevronDown, ChevronUp, X } from 'lucide-react';
 
 export default function BestSectionBadge({ course, sectionMap }) {
@@ -8,12 +8,9 @@ export default function BestSectionBadge({ course, sectionMap }) {
 
     if (sections.length <= 1) return null;
 
-    const sorted = useMemo(() => {
-        return [...sections].sort((a, b) => parseFloat(b.gpa) - parseFloat(a.gpa));
-    }, [sections]);
+    const sorted = [...sections].sort((a, b) => parseFloat(b.gpa) - parseFloat(a.gpa));
 
-    const isBest = sorted[0]?.id === course.id;
-    const bestGpa = parseFloat(sorted[0]?.gpa || 0);
+    const isBest = Number(sorted[0]?.gpa) === Number(course.gpa);
 
     const gpaColor = (gpa) => {
         const num = parseFloat(gpa);
@@ -38,12 +35,12 @@ export default function BestSectionBadge({ course, sectionMap }) {
                 {isBest ? (
                     <>
                         <Star size={10} className="fill-current" />
-                        Best section
+                        Highest historical GPA
                     </>
                 ) : (
                     <>
                         <Users size={10} />
-                        {sections.length} sections
+                        {sections.length} instructors
                     </>
                 )}
                 {showComparison ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
@@ -56,7 +53,7 @@ export default function BestSectionBadge({ course, sectionMap }) {
                 >
                     <div className="flex items-center justify-between mb-2">
                         <span className="text-xs font-semibold text-white">
-                            Compare {sections.length} sections
+                            Compare {sections.length} instructors
                         </span>
                         <button
                             onClick={() => setShowComparison(false)}

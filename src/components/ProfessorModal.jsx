@@ -1,7 +1,24 @@
-import React, { useState, useMemo } from 'react';
-import { X, ArrowUpDown, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { X, ArrowDown, ArrowUp } from 'lucide-react';
 
 export default function ProfessorModal({ professor, courses, onClose }) {
+    const dialogRef = useRef(null);
+    useEffect(() => {
+        const previous = document.activeElement;
+        const dialog = dialogRef.current;
+        const scroll = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+        dialog.querySelector('button')?.focus();
+        const trap = (event) => {
+            if (event.key !== 'Tab') return;
+            const items = dialog.querySelectorAll('button, [href], select, input, [tabindex="0"]');
+            const first = items[0]; const last = items[items.length - 1];
+            if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+            else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+        };
+        dialog.addEventListener('keydown', trap);
+        return () => { dialog.removeEventListener('keydown', trap); document.body.style.overflow = scroll; previous?.focus(); };
+    }, []);
     const [sortKey, setSortKey] = useState('gpa');
     const [sortDir, setSortDir] = useState('desc');
 
@@ -44,127 +61,33 @@ export default function ProfessorModal({ professor, courses, onClose }) {
         }
     };
 
-    const gpaColor = (gpa) => {
-        const num = parseFloat(gpa);
-        if (num >= 3.5) return 'text-emerald-600 dark:text-emerald-400';
-        if (num >= 3.0) return 'text-yellow-600 dark:text-yellow-400';
-        return 'text-red-600 dark:text-red-400';
-    };
-
-
-
-    const getTrend = () => {
-        if (profCourses.length < 2) return null;
-        const withRecent = profCourses
-            .filter(c => c.semesterData && c.semesterData.length > 0)
-            .map(c => ({
-                gpa: parseFloat(c.gpa),
-                lastYear: c.semesterData[c.semesterData.length - 1].year
-            }))
-            .sort((a, b) => a.lastYear - b.lastYear);
-
-        if (withRecent.length < 2) return null;
-        const first = withRecent.slice(0, Math.ceil(withRecent.length / 2));
-        const second = withRecent.slice(Math.ceil(withRecent.length / 2));
-        const avgFirst = first.reduce((s, c) => s + c.gpa, 0) / first.length;
-        const avgSecond = second.reduce((s, c) => s + c.gpa, 0) / second.length;
-        const diff = avgSecond - avgFirst;
-        if (Math.abs(diff) < 0.05) return 'stable';
-        return diff > 0 ? 'up' : 'down';
-    };
-
-    const trend = getTrend();
+    const columns = [
+        { key: 'code', label: 'Course' },
+        { key: 'gpa', label: 'Avg. GPA' },
+        { key: 'medianGpa', label: 'Median' },
+        { key: 'totalStudents', label: 'Students' },
+    ];
 
     return (
-        <div
-            className="fixed inset-0 z-50 flex items-center justify-center p-4"
-            onClick={onClose}
-        >
-            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-
-            <div
-                className="relative w-full max-w-3xl max-h-[85vh] bg-white dark:bg-gray-800 backdrop-blur-xl rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden animate-modal-in"
-                onClick={e => e.stopPropagation()}
-            >
-                {/* Header */}
-                <div className="sticky top-0 z-10 bg-white/95 dark:bg-gray-800/95 backdrop-blur-xl border-b border-gray-200 dark:border-gray-700 px-6 py-4">
-                    <div className="flex items-start justify-between">
-                        <div>
-                            <h2 className="text-xl font-bold text-gray-900 dark:text-white">{professor}</h2>
-                            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Professor Profile</p>
-                        </div>
-                        <button
-                            onClick={onClose}
-                            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white transition-colors"
-                        >
-                            <X size={20} />
-                        </button>
-                    </div>
-
-                    <div className="flex flex-wrap gap-4 mt-4">
-                        <div className="flex items-center gap-2 bg-gray-100 dark:bg-gray-900/50 rounded-lg px-3 py-2">
-                            <span className="text-xs text-gray-500 dark:text-gray-400">Avg GPA</span>
-                            <span className={`font-bold ${gpaColor(stats.avgGpa)}`}>{stats.avgGpa}</span>
-                            {trend === 'up' && <TrendingUp size={14} className="text-emerald-500 dark:text-emerald-400" />}
-                            {trend === 'down' && <TrendingDown size={14} className="text-red-500 dark:text-red-400" />}
-                            {trend === 'stable' && <Minus size={14} className="text-gray-400" />}
-                        </div>
-
-                        <div className="flex items-center gap-2 bg-gray-100 dark:bg-gray-900/50 rounded-lg px-3 py-2">
-                            <span className="text-xs text-gray-500 dark:text-gray-400">Courses</span>
-                            <span className="font-bold text-gray-900 dark:text-white">{stats.uniqueCourses}</span>
-                        </div>
-                        <div className="flex items-center gap-2 bg-gray-100 dark:bg-gray-900/50 rounded-lg px-3 py-2">
-                            <span className="text-xs text-gray-500 dark:text-gray-400">Students</span>
-                            <span className="font-bold text-gray-900 dark:text-white">{stats.totalStudents.toLocaleString()}</span>
-                        </div>
-                    </div>
+        <div className="profile-backdrop" onClick={onClose}>
+            <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="professor-heading" className="professor-profile animate-modal-in" onClick={event => event.stopPropagation()}>
+                <div className="profile-header">
+                    <div><p className="eyebrow">INSTRUCTOR RECORD</p><h2 id="professor-heading">{professor}</h2></div>
+                    <button className="icon-button" onClick={onClose} aria-label="Close professor profile"><X size={20} /></button>
                 </div>
-
-                <div className="overflow-auto max-h-[calc(85vh-160px)]">
-                    <table className="w-full text-sm">
-                        <thead className="sticky top-0 bg-gray-50/95 dark:bg-gray-900/95 backdrop-blur-sm">
-                            <tr className="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wider">
-                                {[
-                                    { key: 'code', label: 'Course' },
-                                    { key: 'title', label: 'Title' },
-                                    { key: 'gpa', label: 'Mean' },
-                                    { key: 'medianGpa', label: 'Median' },
-
-                                    { key: 'totalStudents', label: 'Students' },
-                                ].map(col => (
-                                    <th
-                                        key={col.key}
-                                        className="px-4 py-3 text-left cursor-pointer hover:text-gray-900 dark:hover:text-white transition-colors select-none"
-                                        onClick={() => handleSort(col.key)}
-                                    >
-                                        <span className="flex items-center gap-1">
-                                            {col.label}
-                                            {sortKey === col.key && (
-                                                <ArrowUpDown size={12} className={`text-mason-green dark:text-mason-gold ${sortDir === 'asc' ? 'rotate-180' : ''}`} />
-                                            )}
-                                        </span>
-                                    </th>
-                                ))}
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                            {sortedCourses.map(course => (
-                                <tr
-                                    key={course.id}
-                                    className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
-                                >
-                                    <td className="px-4 py-3 font-medium text-gray-900 dark:text-white whitespace-nowrap">{course.code}</td>
-                                    <td className="px-4 py-3 text-gray-600 dark:text-gray-300 max-w-[200px] truncate" title={course.title}>{course.title}</td>
-                                    <td className={`px-4 py-3 font-bold ${gpaColor(course.gpa)}`}>{course.gpa}</td>
-                                    <td className={`px-4 py-3 font-semibold ${gpaColor(course.medianGpa)}`}>{course.medianGpa}</td>
-
-                                    <td className="px-4 py-3 text-gray-600 dark:text-gray-300">{course.totalStudents}</td>
-                                </tr>
-                            ))}
-                        </tbody>
+                <dl className="profile-stats">
+                    <div><dt>Average across courses</dt><dd>{stats.avgGpa}<small> GPA</small></dd></div>
+                    <div><dt>Courses</dt><dd>{stats.uniqueCourses}</dd></div>
+                    <div><dt>Student records</dt><dd>{stats.totalStudents.toLocaleString()}</dd></div>
+                </dl>
+                <p className="profile-note">Each course counts equally in this average. Student records may include the same person in different courses.</p>
+                <div className="profile-scroll" tabIndex={0} role="region" aria-label="Instructor course records">
+                    <table className="profile-table"><caption className="sr-only">Historical grade averages for {professor}</caption>
+                        <thead><tr>{columns.map(column => <th key={column.key} scope="col" aria-sort={sortKey === column.key ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}><button onClick={() => handleSort(column.key)}>{column.label}{sortKey === column.key && (sortDir === 'asc' ? <ArrowUp size={13} /> : <ArrowDown size={13} />)}</button></th>)}</tr></thead>
+                        <tbody>{sortedCourses.map(course => <tr key={course.id}><td><strong>{course.code}</strong><span>{course.title}</span></td><td>{course.gpa}</td><td>{course.medianGpa}</td><td>{course.totalStudents.toLocaleString()}</td></tr>)}</tbody>
                     </table>
                 </div>
+                <div className="profile-footer">Historical grades · Not a rating of teaching quality</div>
             </div>
         </div>
     );
