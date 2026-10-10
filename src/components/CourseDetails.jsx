@@ -1,16 +1,24 @@
+import { motion as Motion } from 'motion/react';
 import GpaTrend from './GpaTrend';
 import { historicalStanding, chronologicalTerms } from '../utils/coursePresentation';
 
 const grades = ['A+', 'A', 'A-', 'B+', 'B', 'B-', 'C+', 'C', 'C-', 'D', 'F'];
 
+function getGradeBarClass(grade) {
+    if (grade.startsWith('A')) return 'grade-bar-emerald';
+    if (grade.startsWith('B')) return 'grade-bar-teal';
+    if (grade.startsWith('C')) return 'grade-bar-amber';
+    return 'grade-bar-rose';
+}
+
 export default function CourseDetails({ course, sectionMap, onProfessorClick }) {
     const total = grades.reduce((sum, grade) => sum + (course.grades?.[grade] || 0), 0);
     const peers = [...(sectionMap?.get(course.courseKey) || [])].sort((a, b) => Number(b.gpa) - Number(a.gpa));
     return <div className="course-details">
-        <div><h4>Grade distribution</h4><div className="grade-chart">{grades.map(grade => {
+        <div><h4>Grade distribution</h4><div className="grade-chart">{grades.map((grade, index) => {
             const count = course.grades?.[grade] || 0;
             const percentage = total ? count / total * 100 : 0;
-            return <div className="grade-column" role="img" aria-label={`${grade}: ${count} students, ${percentage.toFixed(1)} percent`} key={grade} title={`${grade}: ${count} students (${percentage.toFixed(1)}%)`}><span className="grade-value">{Math.round(percentage)}%</span><div className="grade-track"><div style={{ height: `${percentage}%`, '--grade-share': `${percentage}%` }} /></div><span className="grade-label">{grade}</span></div>;
+            return <div className="grade-column" role="img" aria-label={`${grade}: ${count} students, ${percentage.toFixed(1)} percent`} key={grade} title={`${grade}: ${count} students (${percentage.toFixed(1)}%)`}><span className="grade-value"><Motion.span initial={{ opacity: 0, y: 3 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08 + index * 0.025 }}>{Math.round(percentage)}%</Motion.span></span><div className="grade-track"><Motion.div className={getGradeBarClass(grade)} initial={{ height: 0 }} animate={{ height: `${percentage}%` }} transition={{ type: "spring", stiffness: 220, damping: 14, delay: index * 0.025 }} style={{ '--grade-share': `${percentage}%` }} /></div><span className="grade-label">{grade}</span></div>;
         })}</div><p className="detail-note">Share of {total.toLocaleString()} letter grades. Withdrawals and incompletes excluded.</p></div>
         <div className="detail-facts"><h4>Behind the average</h4><dl><div><dt>Median GPA</dt><dd>{course.medianGpa}</dd></div><div><dt>Standard deviation</dt><dd>{course.stdDev ?? 'Not available'}</dd></div><div><dt>Withdrawal rate</dt><dd>{course.withdrawRate != null ? `${course.withdrawRate}%` : 'Not available'}</dd></div></dl><p className="detail-note">Recorded terms: {chronologicalTerms(course.semesterData).map(term => term.semester).join(', ') || course.semesters?.join(', ') || 'Not available'}</p></div>
         <GpaTrend course={course} />

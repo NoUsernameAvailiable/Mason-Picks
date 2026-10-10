@@ -1,4 +1,5 @@
 import { useId } from 'react';
+import { motion as Motion } from 'motion/react';
 import { chronologicalTerms } from '../utils/coursePresentation';
 
 export default function GpaTrend({ course }) {
@@ -16,8 +17,26 @@ export default function GpaTrend({ course }) {
             <title id={titleId}>Historical average GPA for {course.code}, {course.instructor}</title>
             <desc id={descriptionId}>{terms.length} recorded terms, from {first.semester} ({first.gpa} GPA) to {last.semester} ({last.gpa} GPA). The vertical scale is zero to four. Exact values are listed below.</desc>
             {[0, 1, 2, 3, 4].map(value => <g key={value}><line x1="34" x2="436" y1={124 - value * 26} y2={124 - value * 26} className="trend-grid" /><text x="22" y={128 - value * 26} textAnchor="end">{value}</text></g>)}
-            <polyline points={terms.map(term => `${x(term)},${y(term)}`).join(' ')} className="trend-line" />
-            {terms.map(term => <circle key={term.semester} cx={x(term)} cy={y(term)} r="3" className="trend-dot"><title>{term.semester}: {term.gpa} GPA, {term.studentCount} students</title></circle>)}
+            <Motion.polyline
+                points={terms.map(term => `${x(term)},${y(term)}`).join(' ')}
+                className="trend-line"
+                initial={{ pathLength: 0, opacity: 0 }}
+                animate={{ pathLength: 1, opacity: 1 }}
+                transition={{ duration: 0.6, ease: "easeOut" }}
+            />
+            {terms.map((term, index) => <Motion.circle
+                key={term.semester}
+                cx={x(term)}
+                cy={y(term)}
+                r="3.5"
+                className="trend-dot"
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                whileHover={{ scale: 2.2 }}
+                transition={{ type: "spring", stiffness: 400, damping: 18, delay: 0.1 + index * 0.03 }}
+            >
+                <title>{term.semester}: {term.gpa} GPA, {term.studentCount} students</title>
+            </Motion.circle>)}
             <text x="34" y="147">{first.semester}</text><text x="436" y="147" textAnchor="end">{last.semester}</text>
         </svg> : <p className="detail-note">One recorded term: {first.semester}. More terms are needed to show a trend.</p>}
         <details className="term-history"><summary>View {terms.length} recorded {terms.length === 1 ? 'term' : 'terms'}</summary><div className="term-list">{terms.map(term => <div key={term.semester}><span>{term.semester}</span><strong>{term.gpa} GPA</strong><small>{Number(term.studentCount).toLocaleString()} {term.studentCount === 1 ? 'student' : 'students'}</small></div>)}</div></details>

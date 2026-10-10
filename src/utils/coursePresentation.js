@@ -13,3 +13,27 @@ export function chronologicalTerms(terms = []) {
         .map(term => ({ ...term, time: Number(term.year) + (order[term.term] ?? 0) / 4 }))
         .sort((a, b) => a.time - b.time);
 }
+
+export function calculateARate(course) {
+    if (!course || !course.grades) return null;
+    const g = course.grades;
+    const aCount = (g['A+'] || 0) + (g['A'] || 0) + (g['A-'] || 0);
+    const total = ['A+', 'A', 'A-', 'B+', 'B', 'B-', 'C+', 'C', 'C-', 'D', 'F'].reduce((s, k) => s + (g[k] || 0), 0);
+    return total > 0 ? Math.round((aCount / total) * 100) : null;
+}
+
+export function getGradingTier(course) {
+    const gpa = Number(course?.gpa);
+    if (!Number.isFinite(gpa) || gpa <= 0) return null;
+    if (gpa >= 3.6) return { label: 'High A-rate', className: 'tier-generous' };
+    if (gpa >= 3.0) return { label: 'Balanced', className: 'tier-balanced' };
+    return { label: 'Rigorous', className: 'tier-rigorous' };
+}
+
+export function getRateMyProfessorsUrl(instructor) {
+    if (!instructor) return null;
+    const clean = instructor.trim();
+    if (!clean || clean.toUpperCase() === 'TBA' || clean.toUpperCase() === 'STAFF') return null;
+    return `https://www.ratemyprofessors.com/search/professors/352?q=${encodeURIComponent(clean)}`;
+}
+

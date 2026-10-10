@@ -4,7 +4,10 @@ import Footer from './components/Footer';
 import CourseCard from './components/CourseCard';
 import CourseTable from './components/CourseTable';
 import ProfessorModal from './components/ProfessorModal';
-import { Search, ArrowUpDown, LayoutGrid, List, Shuffle, X, SlidersHorizontal } from 'lucide-react';
+import BackgroundIcons from './components/BackgroundIcons';
+import { Search, ArrowUpDown, LayoutGrid, List, Shuffle, X, SlidersHorizontal, ArrowUp, Sparkles } from 'lucide-react';
+import { motion as Motion, AnimatePresence } from 'motion/react';
+import Lenis from 'lenis';
 
 import { createCourseMatcher } from './utils/courseSearch';
 
@@ -27,7 +30,7 @@ function getInitialState() {
         selectedLevel: ['100', '200', '300', '400', '500+'].includes(level) ? level : 'All',
         sortKey: ['gpa', 'medianGpa', 'totalStudents', 'instructor', 'code'].includes(sort) ? sort : 'gpa',
         sortDir: params.get('dir') === 'asc' ? 'asc' : 'desc',
-        viewMode: view === 'grid' ? 'grid' : 'table',
+        viewMode: view === 'table' ? 'table' : 'grid',
     };
 }
 
@@ -46,9 +49,62 @@ function App() {
     const [viewMode, setViewMode] = useState(initial.viewMode);
     const [selectedProfessor, setSelectedProfessor] = useState(null);
     const [filtersOpen, setFiltersOpen] = useState(false);
+    const [luckySpinning, setLuckySpinning] = useState(false);
+    const [showScrollTop, setShowScrollTop] = useState(false);
     const [error, setError] = useState(false);
     const [retry, setRetry] = useState(0);
     const debounceRef = useRef(null);
+    const lenisRef = useRef(null);
+
+    // Initialize Lenis weighted smooth scrolling (antigravity-style inertia)
+    useEffect(() => {
+        const lenis = new Lenis({
+            duration: 1.25,
+            easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+            orientation: 'vertical',
+            gestureOrientation: 'vertical',
+            smoothWheel: true,
+            wheelMultiplier: 1.1,
+            touchMultiplier: 1.5,
+            infinite: false,
+        });
+        lenisRef.current = lenis;
+
+        function raf(time) {
+            lenis.raf(time);
+            requestAnimationFrame(raf);
+        }
+        const rafId = requestAnimationFrame(raf);
+
+        const onScroll = () => {
+            setShowScrollTop(window.scrollY > 380);
+        };
+        window.addEventListener('scroll', onScroll, { passive: true });
+
+        return () => {
+            cancelAnimationFrame(rafId);
+            window.removeEventListener('scroll', onScroll);
+            lenis.destroy();
+            lenisRef.current = null;
+        };
+    }, []);
+
+    // Pause Lenis when modal is open to isolate internal dialog scroll
+    useEffect(() => {
+        if (selectedProfessor) {
+            lenisRef.current?.stop();
+        } else {
+            lenisRef.current?.start();
+        }
+    }, [selectedProfessor]);
+
+    const scrollToTop = () => {
+        if (lenisRef.current) {
+            lenisRef.current.scrollTo(0, { duration: 1.2 });
+        } else {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    };
 
     useEffect(() => {
         const controller = new AbortController();
@@ -186,6 +242,8 @@ function App() {
         setDebouncedSearch(term);
         setSortConfig({ key: 'gpa', direction: 'desc' });
         setPage(1);
+        setLuckySpinning(true);
+        setTimeout(() => setLuckySpinning(false), 500);
 
         clearTimeout(debounceRef.current);
     };
@@ -212,6 +270,7 @@ function App() {
 
     return (
         <div className="site-shell">
+            <BackgroundIcons />
             <Header />
             <main id="main-content" className="page-width main-content">
                 <section className="search-section" aria-labelledby="search-heading">
@@ -233,22 +292,61 @@ function App() {
                             <label>Average GPA<select id="gpa-filter" value={minGPA} onChange={e => { setMinGPA(Number(e.target.value)); setPage(1); }}><option value="0">Any GPA</option><option value="4">4.0 only</option><option value="3.5">3.5 or above</option><option value="3">3.0 or above</option><option value="2">2.0 or above</option></select></label>
                             <div className="student-filter"><div className="student-filter-heading"><label htmlFor="students-filter">Minimum students</label><details className="filter-help"><summary aria-label="Why filter by student count?">?</summary><p>Small samples can make a GPA misleading. Raise the minimum to exclude results based on only a handful of students. Counts cover all recorded terms for each course–instructor pair; a larger count does not guarantee multiple semesters. Check recorded terms in Grade details.</p></details></div><input id="students-filter" type="number" min="0" max="1000000" step="1" value={minStudents || ''} placeholder="Any count" onChange={e => { setMinStudents(Math.max(0, Math.min(1000000, Math.floor(Number(e.target.value)) || 0))); setPage(1); }} /></div>
                         </div>
-                        <button id="random-course-btn" className="discovery-button" onClick={handleRandomCourse} disabled={loading || error} title="Pick a course with a historical GPA of at least 3.5 and at least 20 students"><Shuffle size={16} />I'm Feeling Lucky</button>
+                        <Motion.button
+                            id="random-course-btn"
+                            className="discovery-button"
+                            onClick={handleRandomCourse}
+                            disabled={loading || error}
+                            title="Pick a course with a historical GPA of at least 3.5 and at least 20 students"
+                            whileHover={{ scale: 1.05, y: -2 }}
+                            whileTap={{ scale: 0.93 }}
+                            transition={{ type: "spring", stiffness: 450, damping: 20 }}
+                        >
+                            <Motion.span
+                                animate={luckySpinning ? { rotate: [0, 180, 360], scale: [1, 1.35, 1] } : { rotate: 0, scale: 1 }}
+                                transition={{ duration: 0.5, ease: "easeInOut" }}
+                                style={{ display: 'inline-flex' }}
+                            >
+                                <Sparkles size={16} />
+                            </Motion.span>
+                            I'm Feeling Lucky
+                        </Motion.button>
                     </div>
                 </section>
                 {activeFilters > 0 && <div className="active-filters" aria-label="Active filters">
                     <span>Filtered by</span>
-                    {minStudents > 0 && <button onClick={() => { setMinStudents(0); setPage(1); }} aria-label="Remove minimum students filter">{minStudents.toLocaleString()}+ students<X size={13} aria-hidden="true" /></button>}
-                    {selectedSubject !== 'All' && <button onClick={() => { setSelectedSubject('All'); setPage(1); }} aria-label={`Remove subject filter: ${selectedSubject}`}>{selectedSubject}<X size={13} aria-hidden="true" /></button>}
-                    {selectedLevel !== 'All' && <button onClick={() => { setSelectedLevel('All'); setPage(1); }} aria-label={`Remove level filter: ${selectedLevel}`}>{selectedLevel}-level<X size={13} aria-hidden="true" /></button>}
-                    {minGPA > 0 && <button onClick={() => { setMinGPA(0); setPage(1); }} aria-label={`Remove GPA filter: ${minGPA}`}>{minGPA === 4 ? '4.0 GPA' : `${minGPA.toFixed(1)}+ GPA`}<X size={13} aria-hidden="true" /></button>}
+                    <AnimatePresence>
+                        {minStudents > 0 && <Motion.button initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.8, opacity: 0 }} transition={{ type: "spring", stiffness: 400, damping: 25 }} onClick={() => { setMinStudents(0); setPage(1); }} aria-label="Remove minimum students filter">{minStudents.toLocaleString()}+ students<X size={13} aria-hidden="true" /></Motion.button>}
+                        {selectedSubject !== 'All' && <Motion.button initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.8, opacity: 0 }} transition={{ type: "spring", stiffness: 400, damping: 25 }} onClick={() => { setSelectedSubject('All'); setPage(1); }} aria-label={`Remove subject filter: ${selectedSubject}`}>{selectedSubject}<X size={13} aria-hidden="true" /></Motion.button>}
+                        {selectedLevel !== 'All' && <Motion.button initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.8, opacity: 0 }} transition={{ type: "spring", stiffness: 400, damping: 25 }} onClick={() => { setSelectedLevel('All'); setPage(1); }} aria-label={`Remove level filter: ${selectedLevel}`}>{selectedLevel}-level<X size={13} aria-hidden="true" /></Motion.button>}
+                        {minGPA > 0 && <Motion.button initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.8, opacity: 0 }} transition={{ type: "spring", stiffness: 400, damping: 25 }} onClick={() => { setMinGPA(0); setPage(1); }} aria-label={`Remove GPA filter: ${minGPA}`}>{minGPA === 4 ? '4.0 GPA' : `${minGPA.toFixed(1)}+ GPA`}<X size={13} aria-hidden="true" /></Motion.button>}
+                    </AnimatePresence>
                 </div>}
                 <section aria-label="Course results">
                     <div className="results-toolbar">
-                        <div className="results-summary" role="status"><strong>{loading ? 'Loading courses…' : error ? 'Courses unavailable' : `${filteredCourses.length.toLocaleString()} ${filteredCourses.length === 1 ? 'result' : 'results'}`}</strong>{hasFilters && <button className="text-button" onClick={resetFilters}>Reset filters</button>}</div>
+                        <div className="results-summary" role="status">
+                            <Motion.strong
+                                key={loading ? 'loading' : filteredCourses.length}
+                                initial={{ scale: 0.88, opacity: 0.6 }}
+                                animate={{ scale: 1, opacity: 1 }}
+                                transition={{ type: "spring", stiffness: 450, damping: 22 }}
+                            >
+                                {loading ? 'Loading courses…' : error ? 'Courses unavailable' : `${filteredCourses.length.toLocaleString()} ${filteredCourses.length === 1 ? 'result' : 'results'}`}
+                            </Motion.strong>
+                            {hasFilters && <button className="text-button" onClick={resetFilters}>Reset filters</button>}
+                        </div>
                         <div className="result-options"><label className="sort-label">Sort by<select id="sort-select" value={sortConfig.key} onChange={e => handleSort(e.target.value)}><option value="gpa">Average GPA</option><option value="medianGpa">Median GPA</option><option value="totalStudents">Student count</option><option value="instructor">Instructor</option><option value="code">Course</option></select></label>
                         <button id="sort-direction-btn" className="icon-button" onClick={() => handleSort(sortConfig.key)} aria-label={`Sort ${sortConfig.direction === 'asc' ? 'descending' : 'ascending'}`} title={`Currently ${sortConfig.direction === 'asc' ? 'ascending' : 'descending'}`}><ArrowUpDown size={17} /></button>
-                        <div className="view-switch" aria-label="Result layout"><button id="table-view-btn" aria-label="List view" aria-pressed={viewMode === 'table'} onClick={() => setViewMode('table')}><List size={18} /></button><button id="grid-view-btn" aria-label="Grid view" aria-pressed={viewMode === 'grid'} onClick={() => setViewMode('grid')}><LayoutGrid size={17} /></button></div></div>
+                        <div className="view-switch" aria-label="Result layout">
+                            <button id="table-view-btn" aria-label="List view" aria-pressed={viewMode === 'table'} onClick={() => setViewMode('table')}>
+                                {viewMode === 'table' && <Motion.span layoutId="viewModePill" className="view-switch-pill" transition={{ type: "spring", stiffness: 450, damping: 32 }} />}
+                                <List size={18} />
+                            </button>
+                            <button id="grid-view-btn" aria-label="Grid view" aria-pressed={viewMode === 'grid'} onClick={() => setViewMode('grid')}>
+                                {viewMode === 'grid' && <Motion.span layoutId="viewModePill" className="view-switch-pill" transition={{ type: "spring", stiffness: 450, damping: 32 }} />}
+                                <LayoutGrid size={17} />
+                            </button>
+                        </div></div>
                     </div>
                     <p className="data-note">Historical averages, not a prediction of your grade. Each result is a course–instructor pairing.</p>
                     {loading ? <div className="loading-rows" aria-label="Loading course results">{[1,2,3,4].map(i => <div key={i} />)}</div> : error ? <div className="empty-state" role="alert"><h2>Course data couldn’t load.</h2><p>Check your connection and try again.</p><button className="control" onClick={() => { setError(false); setLoading(true); setRetry(v => v + 1); }}>Try again</button></div> : displayedCourses.length === 0 ? <div className="empty-state"><Search size={28} /><h2>No matches this time.</h2><p>Try a course code like “CS 112” or remove a filter.</p><button className="control" onClick={resetFilters}>Clear search and filters</button></div> : viewMode === 'table' ? <CourseTable courses={displayedCourses} sortConfig={sortConfig} onSort={handleSort} onProfessorClick={setSelectedProfessor} sectionMap={sectionMap} /> : <div className="course-grid">{displayedCourses.map(course => <CourseCard key={course.id} course={course} sectionMap={sectionMap} onProfessorClick={setSelectedProfessor} />)}</div>}
@@ -256,7 +354,27 @@ function App() {
                 </section>
             </main>
             <Footer />
-            {selectedProfessor && <ProfessorModal professor={selectedProfessor} courses={courses} onClose={() => setSelectedProfessor(null)} />}
+            <AnimatePresence>
+                {selectedProfessor && <ProfessorModal key="professor-modal" professor={selectedProfessor} courses={courses} onClose={() => setSelectedProfessor(null)} />}
+            </AnimatePresence>
+            <AnimatePresence>
+                {showScrollTop && (
+                    <Motion.button
+                        id="scroll-to-top-btn"
+                        className="scroll-to-top-btn"
+                        onClick={scrollToTop}
+                        aria-label="Scroll back to top"
+                        initial={{ opacity: 0, scale: 0.4, y: 20 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.4, y: 20 }}
+                        whileHover={{ scale: 1.15, y: -4 }}
+                        whileTap={{ scale: 0.88 }}
+                        transition={{ type: "spring", stiffness: 450, damping: 22 }}
+                    >
+                        <ArrowUp size={20} />
+                    </Motion.button>
+                )}
+            </AnimatePresence>
         </div>
     );
 }
