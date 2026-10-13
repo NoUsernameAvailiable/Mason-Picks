@@ -1,15 +1,16 @@
 import React, { useState } from 'react';
 import { motion as Motion, AnimatePresence } from 'motion/react';
-import { ChevronDown, ExternalLink } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import CourseDetails from './CourseDetails';
 import HistoricalStanding from './HistoricalStanding';
-import { calculateARate, getGradingTier, getRateMyProfessorsUrl } from '../utils/coursePresentation';
+import InstructorBadge from './InstructorBadge';
+import Badge from './Badge';
+import { calculateARate, getGradingTier } from '../utils/coursePresentation';
 
 export default function CourseCard({ course, sectionMap, onProfessorClick }) {
     const [isOpen, setIsOpen] = useState(false);
     const aRate = calculateARate(course);
     const tier = getGradingTier(course);
-    const rmpUrl = getRateMyProfessorsUrl(course.instructor);
 
     return (
         <Motion.article
@@ -23,7 +24,15 @@ export default function CourseCard({ course, sectionMap, onProfessorClick }) {
                 <div>
                     <div className="card-code-row">
                         <h3>{course.code}</h3>
-                        {tier && <span className={`tier-badge ${tier.className}`}>{tier.label}</span>}
+                        {aRate !== null ? (
+                            <Badge>
+                                {aRate}% As
+                            </Badge>
+                        ) : tier ? (
+                            <Badge>
+                                {tier.label}
+                            </Badge>
+                        ) : null}
                     </div>
                     <p className="course-title">{course.title}</p>
                 </div>
@@ -34,28 +43,19 @@ export default function CourseCard({ course, sectionMap, onProfessorClick }) {
                 >
                     <strong>{course.gpa}</strong>
                     <span>Avg. GPA</span>
-                    {aRate !== null && <span className="a-rate-pill">{aRate}% As</span>}
                     <span className="card-sample">{course.totalStudents.toLocaleString()} {course.totalStudents === 1 ? 'student' : 'students'}</span>
                 </Motion.div>
             </div>
-            <div className="card-instructor-line">
-                <button className="professor-link" onClick={() => onProfessorClick(course.instructor)}>{course.instructor}</button>
-                {rmpUrl && (
-                    <a
-                        href={rmpUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="rmp-badge-link"
-                        title={`Search ${course.instructor} on RateMyProfessors (GMU)`}
-                        aria-label={`Search ${course.instructor} on RateMyProfessors`}
-                    >
-                        <span>RMP</span>
-                        <ExternalLink size={10} aria-hidden="true" />
-                    </a>
-                )}
-            </div>
+            <InstructorBadge
+                instructor={course.instructor}
+                onProfessorClick={onProfessorClick}
+                className="card-instructor-line"
+            />
+
             <p className="card-evidence">{course.semesters?.length || 0} recorded {course.semesters?.length === 1 ? 'term' : 'terms'}</p>
-            <HistoricalStanding course={course} sectionMap={sectionMap} />
+            <div className="card-standing-slot">
+                <HistoricalStanding course={course} sectionMap={sectionMap} />
+            </div>
             <div className="card-disclosure">
                 <button
                     type="button"

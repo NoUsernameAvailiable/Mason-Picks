@@ -1,7 +1,8 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { motion as Motion } from 'motion/react';
-import { X, ArrowDown, ArrowUp, ExternalLink } from 'lucide-react';
-import { calculateARate, getRateMyProfessorsUrl } from '../utils/coursePresentation';
+import { motion as Motion, AnimatePresence } from 'motion/react';
+import { X, ArrowDown, ArrowUp } from 'lucide-react';
+import Badge from './Badge';
+import { calculateARate, getRateMyProfessorsTarget } from '../utils/coursePresentation';
 
 export default function ProfessorModal({ professor, courses, onClose }) {
     const dialogRef = useRef(null);
@@ -25,7 +26,54 @@ export default function ProfessorModal({ professor, courses, onClose }) {
     }, []);
     const [sortKey, setSortKey] = useState('gpa');
     const [sortDir, setSortDir] = useState('desc');
-    const rmpUrl = getRateMyProfessorsUrl(professor);
+    const [showSuggestion, setShowSuggestion] = useState(false);
+    const [suggestedUrl, setSuggestedUrl] = useState('');
+    const [suggestedNotes, setSuggestedNotes] = useState('');
+    const [formError, setFormError] = useState('');
+    const [submitted, setSubmitted] = useState(false);
+
+    const rmp = useMemo(() => getRateMyProfessorsTarget(professor), [professor]);
+
+    const handleSuggestionSubmit = (e) => {
+        e.preventDefault();
+        const trimmed = suggestedUrl.trim();
+        let cleanUrl = trimmed;
+
+        if (/^\d+$/.test(trimmed)) {
+            cleanUrl = `https://www.ratemyprofessors.com/professor/${trimmed}`;
+        } else if (!trimmed.includes('ratemyprofessors.com')) {
+            setFormError('Please enter a valid RateMyProfessors link or numeric ID (e.g. https://www.ratemyprofessors.com/professor/1621871 or 1621871).');
+            return;
+        }
+
+        try {
+            const existing = JSON.parse(localStorage.getItem('mason-picks-rmp-suggestions') || '[]');
+            const updated = existing.filter(item => item.instructor !== professor);
+            updated.push({
+                instructor: professor,
+                suggestedUrl: cleanUrl,
+                notes: suggestedNotes.trim(),
+                timestamp: new Date().toISOString(),
+                status: 'submitted'
+            });
+            localStorage.setItem('mason-picks-rmp-suggestions', JSON.stringify(updated));
+        } catch {}
+
+        setFormError('');
+        setSubmitted(true);
+    };
+
+    const githubIssueUrl = useMemo(() => {
+        const title = encodeURIComponent(`[RMP Link] Suggestion for ${professor}`);
+        const body = encodeURIComponent(
+            `### Instructor RateMyProfessors Suggestion\n\n` +
+            `- **Instructor**: ${professor}\n` +
+            `- **Suggested URL**: ${suggestedUrl.trim() || 'N/A'}\n` +
+            `- **Notes**: ${suggestedNotes.trim() || 'None'}\n\n` +
+            `*Submitted via Mason Picks Suggestion Panel.*`
+        );
+        return `https://github.com/NoUsernameAvailiable/Mason-Picks/issues/new?title=${title}&body=${body}`;
+    }, [professor, suggestedUrl, suggestedNotes]);
 
     const profCourses = useMemo(() => {
         return courses.filter(c => c.instructor === professor);
@@ -109,26 +157,107 @@ export default function ProfessorModal({ professor, courses, onClose }) {
                 onClick={event => event.stopPropagation()}
             >
                 <div className="profile-header">
-                    <div>
+                    <div className="profile-header-main">
                         <p className="eyebrow">INSTRUCTOR RECORD</p>
                         <div className="profile-heading-group">
-                            <h2 id="professor-heading">{professor}</h2>
-                            {rmpUrl && (
-                                <a
-                                    href={rmpUrl}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="rmp-profile-btn"
-                                    title={`View ${professor} on RateMyProfessors`}
+                            <div className="profile-title-area">
+                                <h2 id="professor-heading">{professor}</h2>
+                                {rmp?.isVerified && (
+                                    <Badge variant="verified" title={`Verified GMU profile: ${rmp.name} (${rmp.department})`}>
+                                        Verified RMP profile · {rmp.department}
+                                    </Badge>
+                                )}
+                            </div>
+                            <div className="profile-actions-row">
+                                {rmp && (
+                                    <a
+                                        href={rmp.url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className={`c-link c-link--external ${rmp.isVerified ? 'c-link--verified' : ''} rmp-profile-link`}
+                                        title={rmp.isVerified ? `View verified profile for ${rmp.name} on RateMyProfessors (${rmp.department})` : `Search ${rmp.name} on RateMyProfessors (GMU)`}
+                                    >
+                                        <span className="c-link-text">{rmp.actionText}</span>
+                                    </a>
+                                )}
+                                <button
+                                    type="button"
+                                    className="wrong-prof-trigger"
+                                    onClick={() => { setShowSuggestion(!showSuggestion); setSubmitted(false); }}
+                                    aria-expanded={showSuggestion}
                                 >
-                                    <span>RateMyProfessors</span>
-                                    <ExternalLink size={13} aria-hidden="true" />
-                                </a>
-                            )}
+                                    Wrong professor?
+                                </button>
+                            </div>
                         </div>
                     </div>
                     <button className="icon-button" onClick={onClose} aria-label="Close professor profile"><X size={20} /></button>
                 </div>
+                <AnimatePresence>
+                    {showSuggestion && (
+                        <Motion.section
+                            className="suggestion-panel"
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            transition={{ type: "spring", stiffness: 350, damping: 26 }}
+                            aria-label="Suggest RateMyProfessors Profile"
+                        >
+                            <div className="suggestion-inner">
+                                <div className="suggestion-header-row">
+                                    <div>
+                                        <h4>Suggest Correct RateMyProfessors Link</h4>
+                                        <p>Help verify or correct this professor's RateMyProfessors profile. Suggestions are reviewed before updating the public directory.</p>
+                                    </div>
+                                    <button type="button" className="icon-button suggestion-close" onClick={() => setShowSuggestion(false)} aria-label="Close suggestion panel"><X size={16} /></button>
+                                </div>
+                                {submitted ? (
+                                    <div className="suggestion-success-box" role="status">
+                                        <p>✓ Thank you! Your suggestion has been saved and queued for review.</p>
+                                        <div className="suggestion-action-links">
+                                            <a href={githubIssueUrl} target="_blank" rel="noopener noreferrer" className="github-issue-link">
+                                                Open GitHub issue to submit immediately ↗
+                                            </a>
+                                            <button type="button" className="text-button" onClick={() => setShowSuggestion(false)}>Done</button>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <form onSubmit={handleSuggestionSubmit} className="suggestion-form">
+                                        <div className="suggestion-grid">
+                                            <div className="suggestion-field">
+                                                <label htmlFor="rmp-url-input">Correct RMP Profile URL or Teacher ID</label>
+                                                <input
+                                                    id="rmp-url-input"
+                                                    type="text"
+                                                    placeholder="e.g. https://www.ratemyprofessors.com/professor/1621871 or 1621871"
+                                                    value={suggestedUrl}
+                                                    onChange={e => { setSuggestedUrl(e.target.value); setFormError(''); }}
+                                                    required
+                                                />
+                                                {formError && <span className="suggestion-error">{formError}</span>}
+                                            </div>
+                                            <div className="suggestion-field">
+                                                <label htmlFor="rmp-notes-input">Notes (optional)</label>
+                                                <input
+                                                    id="rmp-notes-input"
+                                                    type="text"
+                                                    placeholder="e.g. Alternate name, department change, or teaching alias"
+                                                    value={suggestedNotes}
+                                                    onChange={e => setSuggestedNotes(e.target.value)}
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="suggestion-actions">
+                                            <button type="submit" className="suggestion-submit-btn">Submit suggestion for review</button>
+                                            <button type="button" className="text-button" onClick={() => setShowSuggestion(false)}>Cancel</button>
+                                        </div>
+                                    </form>
+                                )}
+                            </div>
+                        </Motion.section>
+                    )}
+                </AnimatePresence>
+
                 <dl className="profile-stats">
                     <Motion.div
                         className="profile-stat-box"

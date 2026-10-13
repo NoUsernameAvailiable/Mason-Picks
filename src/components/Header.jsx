@@ -6,9 +6,13 @@ export default function Header() {
     const [dark, setDark] = useState(() => {
         if (typeof window !== 'undefined') {
             try {
+                const params = new URLSearchParams(window.location.search);
+                const themeParam = params.get('theme');
+                if (themeParam === 'light') return false;
+                if (themeParam === 'dark') return true;
                 const stored = localStorage.getItem('mason-picks-charcoal-theme');
                 if (stored !== null) return stored === 'true';
-            } catch { /* Use the system theme when storage is unavailable. */ }
+            } catch {}
             return true;
         }
         return false;
@@ -21,7 +25,7 @@ export default function Header() {
         } else {
             root.classList.remove('dark');
         }
-        try { localStorage.setItem('mason-picks-charcoal-theme', dark.toString()); } catch { /* Theme still works for this session. */ }
+        try { localStorage.setItem('mason-picks-charcoal-theme', dark.toString()); } catch {}
     }, [dark]);
 
     return (

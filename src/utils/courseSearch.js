@@ -4,9 +4,7 @@ const words = value => normalize(value).match(/[a-z0-9]+/g) || [];
 export function createCourseMatcher(query, subjects) {
     const knownSubjects = new Set(subjects.map(normalize));
     let remaining = normalize(query);
-    let subject;
-    let number;
-    // Course identifiers are structured fields, never substrings of titles.
+    let subject, number;
     const code = remaining.match(/\b([a-z]+)[\s-]*(\d{3}[a-z]?)\b/);
     if (code && knownSubjects.has(code[1])) {
         [, subject, number] = code;

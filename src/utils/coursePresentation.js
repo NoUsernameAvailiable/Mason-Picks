@@ -1,3 +1,5 @@
+import verifiedProfessors from '../data/verifiedProfessors.json' with { type: 'json' };
+
 export function historicalStanding(course, peers = []) {
     const comparable = peers.filter(peer => peer.gpa !== '' && Number.isFinite(Number(peer.gpa)));
     if (comparable.length < 2 || course.gpa === '' || !Number.isFinite(Number(course.gpa))) return null;
@@ -30,10 +32,84 @@ export function getGradingTier(course) {
     return { label: 'Rigorous', className: 'tier-rigorous' };
 }
 
-export function getRateMyProfessorsUrl(instructor) {
+
+const KNOWN_NAME_ALIASES = {
+    'Correa Vanessa': 'Vanessa Correa',
+    'Correa Cabrera Guadalupe': 'Guadalupe Correa-Cabrera',
+    'De La Pena Gary Lee': 'Gary Lee De La Pena',
+    'Zaman Ahmed Bin': 'Ahmed Bin Zaman',
+    'Broeckelman-Post Melissa': 'Melissa Broeckelman-Post',
+    'Destine Archange Giscard': 'Archange Destine',
+};
+
+const COMPOUND_PREFIXES = ['de la', 'de', 'van der', 'van den', 'van', 'von', 'del', 'dos', 'da', 'di', 'al-', 'el-'];
+
+export function formatSearchName(instructor) {
+    if (!instructor) return '';
+    const clean = instructor.trim();
+    if (!clean) return '';
+    if (KNOWN_NAME_ALIASES[clean]) {
+        return KNOWN_NAME_ALIASES[clean];
+    }
+
+    const lower = clean.toLowerCase();
+    for (const prefix of COMPOUND_PREFIXES) {
+        if (lower.startsWith(prefix + ' ')) {
+            const remainder = clean.slice(prefix.length + 1).trim();
+            const remainderParts = remainder.split(/\s+/);
+            const surname = clean.slice(0, prefix.length + 1 + remainderParts[0].length);
+            const given = remainderParts.slice(1).join(' ');
+            return given ? `${given} ${surname}` : clean;
+        }
+    }
+
+    const parts = clean.split(/\s+/);
+    if (parts.length === 1) return clean;
+    const surname = parts[0];
+    const given = parts.slice(1).join(' ');
+    return `${given} ${surname}`;
+}
+
+export function getRateMyProfessorsTarget(instructor) {
     if (!instructor) return null;
     const clean = instructor.trim();
     if (!clean || clean.toUpperCase() === 'TBA' || clean.toUpperCase() === 'STAFF') return null;
-    return `https://www.ratemyprofessors.com/search/professors/352?q=${encodeURIComponent(clean)}`;
+
+    const verified = verifiedProfessors[clean];
+    if (verified && verified.id) {
+        return {
+            url: `https://www.ratemyprofessors.com/professor/${verified.id}`,
+            isVerified: true,
+            actionText: 'Read RMP reviews ↗',
+            shortActionText: 'Read reviews ↗',
+            name: verified.name,
+            department: verified.department,
+            school: verified.school || 'George Mason University',
+        };
+    }
+
+    const searchName = formatSearchName(clean);
+    return {
+        url: `https://www.ratemyprofessors.com/search/professors/352?q=${encodeURIComponent(searchName)}`,
+        isVerified: false,
+        actionText: 'Search RMP ↗',
+        shortActionText: 'Search RMP ↗',
+        name: searchName,
+        department: null,
+        school: 'George Mason University',
+    };
 }
+
+export function getRateMyProfessorsUrl(instructor) {
+    const target = getRateMyProfessorsTarget(instructor);
+    return target ? target.url : null;
+}
+
+export function resolveViewMode(urlParam, savedPreference) {
+    if (urlParam === 'table' || urlParam === 'grid') return urlParam;
+    if (savedPreference === 'table' || savedPreference === 'grid') return savedPreference;
+    return 'grid';
+}
+
+
 

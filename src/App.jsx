@@ -10,15 +10,17 @@ import { motion as Motion, AnimatePresence } from 'motion/react';
 import Lenis from 'lenis';
 
 import { createCourseMatcher } from './utils/courseSearch';
+import { resolveViewMode } from './utils/coursePresentation';
 
 const ITEMS_PER_PAGE = 50;
 
-// Parse URL params on mount
 function getInitialState() {
     const params = new URLSearchParams(window.location.search);
     let savedView;
-    try { savedView = localStorage.getItem('mason-picks-view'); } catch { /* Storage may be unavailable in private sessions. */ }
-    const view = params.get('view') || savedView;
+    try {
+        localStorage.removeItem('mason-picks-view');
+        savedView = localStorage.getItem('mason-picks-view-preference');
+    } catch {}
     const sort = params.get('sort');
     const level = params.get('level');
     const minimum = Number(params.get('min') || 0);
@@ -30,7 +32,7 @@ function getInitialState() {
         selectedLevel: ['100', '200', '300', '400', '500+'].includes(level) ? level : 'All',
         sortKey: ['gpa', 'medianGpa', 'totalStudents', 'instructor', 'code'].includes(sort) ? sort : 'gpa',
         sortDir: params.get('dir') === 'asc' ? 'asc' : 'desc',
-        viewMode: view === 'table' ? 'table' : 'grid',
+        viewMode: resolveViewMode(params.get('view'), savedView),
     };
 }
 
@@ -56,7 +58,6 @@ function App() {
     const debounceRef = useRef(null);
     const lenisRef = useRef(null);
 
-    // Initialize Lenis weighted smooth scrolling (antigravity-style inertia)
     useEffect(() => {
         const lenis = new Lenis({
             duration: 1.25,
@@ -89,7 +90,6 @@ function App() {
         };
     }, []);
 
-    // Pause Lenis when modal is open to isolate internal dialog scroll
     useEffect(() => {
         if (selectedProfessor) {
             lenisRef.current?.stop();
@@ -115,7 +115,6 @@ function App() {
         return () => controller.abort();
     }, [retry]);
 
-    //(shareable links)
     useEffect(() => {
         const params = new URLSearchParams();
         if (debouncedSearch) params.set('q', debouncedSearch);
@@ -125,16 +124,15 @@ function App() {
         if (selectedLevel !== 'All') params.set('level', selectedLevel);
         if (sortConfig.key !== 'gpa') params.set('sort', sortConfig.key);
         if (sortConfig.direction !== 'desc') params.set('dir', sortConfig.direction);
-        params.set('view', viewMode);
+        if (viewMode === 'table') params.set('view', 'table');
 
         const search = params.toString();
         const newUrl = search ? `${window.location.pathname}?${search}` : window.location.pathname;
         window.history.replaceState(null, '', newUrl);
     }, [debouncedSearch, minStudents, minGPA, selectedSubject, selectedLevel, sortConfig, viewMode]);
 
-    // Persist view mode
     useEffect(() => {
-        try { localStorage.setItem('mason-picks-view', viewMode); } catch { /* Keep the current view usable without storage. */ }
+        try { localStorage.setItem('mason-picks-view-preference', viewMode); } catch {}
     }, [viewMode]);
 
     const uniqueSubjects = useMemo(() => {
@@ -144,7 +142,6 @@ function App() {
 
     const levelOptions = ['All', '100', '200', '300', '400', '500+'];
 
-    // Pre-compute section map for best section picker
     const sectionMap = useMemo(() => {
         const map = new Map();
         courses.forEach(c => {
@@ -186,7 +183,6 @@ function App() {
             let aValue = a[sortConfig.key];
             let bValue = b[sortConfig.key];
 
-            // Handle numeric vs string comparison
             if (['gpa', 'medianGpa', 'totalStudents'].includes(sortConfig.key)) {
                 aValue = parseFloat(aValue);
                 bValue = parseFloat(bValue);
@@ -228,7 +224,6 @@ function App() {
     }, []);
 
     const handleRandomCourse = () => {
-        // Filter for "easy" courses: GPA >= 3.5 and >= 20 students
         const easyCourses = courses.filter(c => parseFloat(c.gpa) >= 3.5 && c.totalStudents >= 20);
         if (easyCourses.length === 0) return;
 
@@ -338,18 +333,18 @@ function App() {
                         <div className="result-options"><label className="sort-label">Sort by<select id="sort-select" value={sortConfig.key} onChange={e => handleSort(e.target.value)}><option value="gpa">Average GPA</option><option value="medianGpa">Median GPA</option><option value="totalStudents">Student count</option><option value="instructor">Instructor</option><option value="code">Course</option></select></label>
                         <button id="sort-direction-btn" className="icon-button" onClick={() => handleSort(sortConfig.key)} aria-label={`Sort ${sortConfig.direction === 'asc' ? 'descending' : 'ascending'}`} title={`Currently ${sortConfig.direction === 'asc' ? 'ascending' : 'descending'}`}><ArrowUpDown size={17} /></button>
                         <div className="view-switch" aria-label="Result layout">
-                            <button id="table-view-btn" aria-label="List view" aria-pressed={viewMode === 'table'} onClick={() => setViewMode('table')}>
-                                {viewMode === 'table' && <Motion.span layoutId="viewModePill" className="view-switch-pill" transition={{ type: "spring", stiffness: 450, damping: 32 }} />}
-                                <List size={18} />
-                            </button>
                             <button id="grid-view-btn" aria-label="Grid view" aria-pressed={viewMode === 'grid'} onClick={() => setViewMode('grid')}>
                                 {viewMode === 'grid' && <Motion.span layoutId="viewModePill" className="view-switch-pill" transition={{ type: "spring", stiffness: 450, damping: 32 }} />}
                                 <LayoutGrid size={17} />
                             </button>
+                            <button id="table-view-btn" aria-label="List view" aria-pressed={viewMode === 'table'} onClick={() => setViewMode('table')}>
+                                {viewMode === 'table' && <Motion.span layoutId="viewModePill" className="view-switch-pill" transition={{ type: "spring", stiffness: 450, damping: 32 }} />}
+                                <List size={18} />
+                            </button>
                         </div></div>
                     </div>
-                    <p className="data-note">Historical averages, not a prediction of your grade. Each result is a course–instructor pairing.</p>
-                    {loading ? <div className="loading-rows" aria-label="Loading course results">{[1,2,3,4].map(i => <div key={i} />)}</div> : error ? <div className="empty-state" role="alert"><h2>Course data couldn’t load.</h2><p>Check your connection and try again.</p><button className="control" onClick={() => { setError(false); setLoading(true); setRetry(v => v + 1); }}>Try again</button></div> : displayedCourses.length === 0 ? <div className="empty-state"><Search size={28} /><h2>No matches this time.</h2><p>Try a course code like “CS 112” or remove a filter.</p><button className="control" onClick={resetFilters}>Clear search and filters</button></div> : viewMode === 'table' ? <CourseTable courses={displayedCourses} sortConfig={sortConfig} onSort={handleSort} onProfessorClick={setSelectedProfessor} sectionMap={sectionMap} /> : <div className="course-grid">{displayedCourses.map(course => <CourseCard key={course.id} course={course} sectionMap={sectionMap} onProfessorClick={setSelectedProfessor} />)}</div>}
+                    <p className="data-note">Historical grade averages. Single-section teaching assistants and one-time instructors are omitted to focus on recurring faculty.</p>
+                    {loading ? <div className="loading-rows" aria-label="Loading course results">{[1,2,3,4].map(i => <div key={i} />)}</div> : error ? <div className="empty-state" role="alert"><h2>Course data couldn’t load.</h2><p>Check your connection and try again.</p><button className="control" onClick={() => { setError(false); setLoading(true); setRetry(v => v + 1); }}>Try again</button></div> : displayedCourses.length === 0 ? <div className="empty-state"><Search size={28} /><h2>No matches this time.</h2><p>Try a course code like “CS 112” or remove a filter. Note: one-time teaching assistants and single-section adjuncts are omitted.</p><button className="control" onClick={resetFilters}>Clear search and filters</button></div> : viewMode === 'table' ? <CourseTable courses={displayedCourses} sortConfig={sortConfig} onSort={handleSort} onProfessorClick={setSelectedProfessor} sectionMap={sectionMap} /> : <div className="course-grid">{displayedCourses.map(course => <CourseCard key={course.id} course={course} sectionMap={sectionMap} onProfessorClick={setSelectedProfessor} />)}</div>}
                     {!loading && !error && displayedCourses.length > 0 && <div className="results-end"><span>Showing {displayedCourses.length.toLocaleString()} of {filteredCourses.length.toLocaleString()} {filteredCourses.length === 1 ? 'result' : 'results'}</span>{displayedCourses.length < filteredCourses.length && <button id="load-more-btn" className="control" onClick={() => setPage(p => p + 1)}>Show 50 more</button>}</div>}
                 </section>
             </main>
